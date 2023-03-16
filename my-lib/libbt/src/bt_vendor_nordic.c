@@ -94,10 +94,60 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 			break;
 
 		case BT_VND_OP_USERIAL_OPEN:
-		{
-			int (*fd_array)[] = (int (*)[])param;
-			int fd, idx;
-			fs = userial_vendor_open()
-		}
+			{
+				int (*fd_array)[] = (int (*)[])param;
+				int fd, idx;
+				fs = userial_vendor_open()
+			}
+			break;
+
+		case BT_VND_OP_GET_LPM_IDLE_TIMEOUT:
+			{
+
+			}
+			break;
+
+		case BT_VND_OP_LPM_SET_MODE:
+			{
+
+			}
+			break;
+
+		case BT_VND_OP_LPM_WAKE_SET_STATE:
+			{
+
+			}
+			break;
+
+		case BT_VND_OP_EPILOG:
+			{
+#if (HW_END_WITH_HCI_RESET == FALSE)
+				if (bt_vendor_cbacks)
+				{
+					bt_vendor_cbacks->epilog_cb(BT_VND_OP_RESULT_SUCCESS);
+				}
+#else
+				hw_epilog_process();
+#endif
+			}
+			break;
 	}
+
+	return retval;
 }
+
+/* Closes the interface */
+static void cleanup(void)
+{
+	BTVNDDBG("cleanup")
+	upio_cleanup();
+	bt_vendor_cbacks = NULL;
+}
+
+/* Entry point of DLib */
+const bt_vendor_interface_t BLUETOOH_VENDOR_LIB_INTERFACE = {
+	sizeof(bt_vendor_interface_t),
+	init,
+	op,
+	cleanup
+};

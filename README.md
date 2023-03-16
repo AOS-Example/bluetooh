@@ -19,3 +19,10 @@ Refer to [Android source code](https://android.googlesource.com/platform/system/
 
 # HIDL Layer
 Refer to [Bluetooth HIDL code]()
+
+
+# Support check bluetooth module has firmware or not
+AOS call to check_fw_bt_nordic 
+-> nrf module reply -> don't need flash firmware
+-> nrf modlue doesn't reply in 2 request messages -> need to flash firmware
+
