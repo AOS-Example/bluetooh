@@ -1,4 +1,4 @@
-# Android Bluetooh
+# Android Bluetooth
 
 This repo have features:
 - Support device driver for new bluetooh module
@@ -15,4 +15,7 @@ By the Broadcom device, it uses libbt-vendor in `hardware/broadcom/libbt`
 You need to read this source code to know that which APIs should be implemented in UART driver 
 
 # HCI layer 
-`Refer to [Android source code](https://android.googlesource.com/platform/system/bt/+/refs/tags/android-platform-12.0.0_r16/vendor_libs/linux/)
+Refer to [Android source code](https://android.googlesource.com/platform/system/bt/+/refs/tags/android-platform-12.0.0_r16/vendor_libs/linux/)
+
+# HIDL Layer
+Refer to [Bluetooth HIDL code]()
