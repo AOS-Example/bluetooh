@@ -25,3 +25,4 @@ Refer to [Bluetooth HIDL code]()
 AOS call to check_fw_bt_nordic 
 -> nrf module reply -> don't need flash firmware
 -> nrf modlue doesn't reply in 2 request messages -> need to flash firmware
+
