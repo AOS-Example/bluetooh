@@ -18,3 +18,4 @@ int func(int *ptr)
 
 
 https://github.com/torvalds/linux/blob/master/drivers/tty/serial/altera_uart.c
+https://blog.csdn.net/ylyuanlu/article/details/41442861

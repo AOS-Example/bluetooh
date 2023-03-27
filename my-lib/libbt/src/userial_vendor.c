@@ -1,20 +1,20 @@
-/*
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
- * Not a Contribution.
- * Copyright 2012 The Android Open Source Project
+/******************************************************************************
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Copyright (C) 2009-2012 Broadcom Corporation
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at:
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ ******************************************************************************/
 
 /******************************************************************************
  *
@@ -24,38 +24,55 @@
  *
  ******************************************************************************/
 
-#define LOG_TAG "bt_vendor"
+#define LOG_TAG "bt_userial_vendor"
 
 #include <utils/Log.h>
 #include <termios.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
-#include "bt_vendor_qcom.h"
-#include "hci_uart.h"
 #include <string.h>
+#include "bt_vendor_brcm.h"
+#include "userial.h"
+#include "userial_vendor.h"
+#include <unistd.h>
 
 /******************************************************************************
 **  Constants & Macros
 ******************************************************************************/
 
 #ifndef VNDUSERIAL_DBG
-#define VNDUSERIAL_DBG TRUE
+#define VNDUSERIAL_DBG FALSE
 #endif
 
 #if (VNDUSERIAL_DBG == TRUE)
-#define VNDUSERIALDBG(param, ...) {ALOGI(param, ## __VA_ARGS__);}
+#define VNDUSERIALDBG(param, ...) {ALOGD(param, ## __VA_ARGS__);}
 #else
 #define VNDUSERIALDBG(param, ...) {}
 #endif
 
+#define VND_PORT_NAME_MAXLEN    256
+
 /******************************************************************************
-**  Global variables
+**  Local type definitions
 ******************************************************************************/
-vnd_userial_cb_t vnd_userial;
+
+/* vendor serial control block */
+typedef struct
+{
+    int fd;                     /* fd to Bluetooth device */
+    struct termios termios;     /* serial terminal of BT port */
+    char port_name[VND_PORT_NAME_MAXLEN];
+} vnd_userial_cb_t;
+
+/******************************************************************************
+**  Static variables
+******************************************************************************/
+
+static vnd_userial_cb_t vnd_userial;
 
 /*****************************************************************************
-**   Functions
+**   Helper Functions
 *****************************************************************************/
 
 /*******************************************************************************
@@ -106,70 +123,6 @@ uint8_t userial_to_tcio_baud(uint8_t cfg_baud, uint32_t *baud)
     return TRUE;
 }
 
-/*******************************************************************************
-**
-** Function        userial_to_baud_tcio
-**
-** Description     helper function converts TCIO baud rate into integer
-**
-** Returns         uint32_t
-**
-*******************************************************************************/
-int userial_tcio_baud_to_int(uint32_t baud)
-{
-    int baud_rate =0;
-
-    switch (baud)
-    {
-        case B600:
-            baud_rate = 600;
-            break;
-        case B1200:
-            baud_rate = 1200;
-            break;
-        case B9600:
-            baud_rate = 9600;
-            break;
-        case B19200:
-            baud_rate = 19200;
-            break;
-        case B57600:
-            baud_rate = 57600;
-            break;
-        case B115200:
-            baud_rate = 115200;
-            break;
-        case B230400:
-            baud_rate = 230400;
-            break;
-        case B460800:
-            baud_rate = 460800;
-            break;
-        case B921600:
-            baud_rate = 921600;
-            break;
-        case B1000000:
-            baud_rate = 1000000;
-            break;
-        case B2000000:
-            baud_rate = 2000000;
-            break;
-        case B3000000:
-            baud_rate = 3000000;
-            break;
-        case B4000000:
-            baud_rate = 4000000;
-            break;
-        default:
-            ALOGE( "%s: unsupported baud %d", __FUNCTION__, baud);
-            break;
-    }
-
-    ALOGI( "%s: Current Baudrate = %d bps", __FUNCTION__, baud_rate);
-    return baud_rate;
-}
-
-
 #if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
 /*******************************************************************************
 **
@@ -185,6 +138,19 @@ int userial_tcio_baud_to_int(uint32_t baud)
 void userial_ioctl_init_bt_wake(int fd)
 {
     uint32_t bt_wake_state;
+
+#if (BT_WAKE_USERIAL_LDISC==TRUE)
+    int ldisc = N_BRCM_HCI; /* brcm sleep mode support line discipline */
+
+    /* attempt to load enable discipline driver */
+    if (ioctl(vnd_userial.fd, TIOCSETD, &ldisc) < 0)
+    {
+        VNDUSERIALDBG("USERIAL_Open():fd %d, TIOCSETD failed: error %d for ldisc: %d",
+                      fd, errno, ldisc);
+    }
+#endif
+
+
 
     /* assert BT_WAKE through ioctl */
     ioctl(fd, USERIAL_IOCTL_BT_WAKE_ASSERT, NULL);
@@ -211,7 +177,8 @@ void userial_ioctl_init_bt_wake(int fd)
 void userial_vendor_init(void)
 {
     vnd_userial.fd = -1;
-    snprintf(vnd_userial.port_name, VND_PORT_NAME_MAXLEN, "%s", BT_HS_UART_DEVICE);
+    snprintf(vnd_userial.port_name, VND_PORT_NAME_MAXLEN, "%s", \
+            BLUETOOTH_UART_DEVICE_PORT);
 }
 
 /*******************************************************************************
@@ -275,7 +242,7 @@ int userial_vendor_open(tUSERIAL_CFG *p_cfg)
 
     ALOGI("userial vendor open: opening %s", vnd_userial.port_name);
 
-    if ((vnd_userial.fd = open(vnd_userial.port_name, O_RDWR|O_NOCTTY)) == -1)
+    if ((vnd_userial.fd = open(vnd_userial.port_name, O_RDWR)) == -1)
     {
         ALOGE("userial vendor open: unable to open %s", vnd_userial.port_name);
         return -1;
@@ -285,19 +252,18 @@ int userial_vendor_open(tUSERIAL_CFG *p_cfg)
 
     tcgetattr(vnd_userial.fd, &vnd_userial.termios);
     cfmakeraw(&vnd_userial.termios);
-
-    /* Set UART Control Modes */
-    vnd_userial.termios.c_cflag |= CLOCAL;
     vnd_userial.termios.c_cflag |= (CRTSCTS | stop_bits);
+    tcsetattr(vnd_userial.fd, TCSANOW, &vnd_userial.termios);
+    tcflush(vnd_userial.fd, TCIOFLUSH);
 
     tcsetattr(vnd_userial.fd, TCSANOW, &vnd_userial.termios);
+    tcflush(vnd_userial.fd, TCIOFLUSH);
+    tcflush(vnd_userial.fd, TCIOFLUSH);
 
     /* set input/output baudrate */
     cfsetospeed(&vnd_userial.termios, baud);
     cfsetispeed(&vnd_userial.termios, baud);
     tcsetattr(vnd_userial.fd, TCSANOW, &vnd_userial.termios);
-
-    tcflush(vnd_userial.fd, TCIOFLUSH);
 
 #if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
     userial_ioctl_init_bt_wake(vnd_userial.fd);
@@ -330,7 +296,8 @@ void userial_vendor_close(void)
 #endif
 
     ALOGI("device fd = %d close", vnd_userial.fd);
-
+    // flush Tx before close to make sure no chars in buffer
+    tcflush(vnd_userial.fd, TCIOFLUSH);
     if ((result = close(vnd_userial.fd)) < 0)
         ALOGE( "close(fd:%d) FAILED result:%d", vnd_userial.fd, result);
 
@@ -350,34 +317,11 @@ void userial_vendor_set_baud(uint8_t userial_baud)
 {
     uint32_t tcio_baud;
 
-    VNDUSERIALDBG("## userial_vendor_set_baud: %d", userial_baud);
-
     userial_to_tcio_baud(userial_baud, &tcio_baud);
 
     cfsetospeed(&vnd_userial.termios, tcio_baud);
     cfsetispeed(&vnd_userial.termios, tcio_baud);
-    tcsetattr(vnd_userial.fd, TCSADRAIN, &vnd_userial.termios); /* don't change speed until last write done */
-//    tcflush(vnd_userial.fd, TCIOFLUSH);
-}
-
-/*******************************************************************************
-**
-** Function        userial_vendor_get_baud
-**
-** Description     Get current baud rate
-**
-** Returns         int
-**
-*******************************************************************************/
-int userial_vendor_get_baud(void)
-{
-    if (vnd_userial.fd == -1)
-    {
-        ALOGE( "%s: uart port(%s) has not been opened", __FUNCTION__, BT_HS_UART_DEVICE );
-        return -1;
-    }
-
-    return userial_tcio_baud_to_int(cfgetispeed(&vnd_userial.termios));
+    tcsetattr(vnd_userial.fd, TCSANOW, &vnd_userial.termios);
 }
 
 /*******************************************************************************
@@ -389,45 +333,29 @@ int userial_vendor_get_baud(void)
 ** Returns         None
 **
 *******************************************************************************/
-int userial_vendor_ioctl(userial_vendor_ioctl_op_t op, int *p_data)
+void userial_vendor_ioctl(userial_vendor_ioctl_op_t op, void *p_data)
 {
-    int err;
-
     switch(op)
     {
 #if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
         case USERIAL_OP_ASSERT_BT_WAKE:
             VNDUSERIALDBG("## userial_vendor_ioctl: Asserting BT_Wake ##");
-            err = ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_ASSERT, NULL);
+            ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_ASSERT, NULL);
             break;
 
         case USERIAL_OP_DEASSERT_BT_WAKE:
             VNDUSERIALDBG("## userial_vendor_ioctl: De-asserting BT_Wake ##");
-            err = ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_DEASSERT, NULL);
+            ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_DEASSERT, NULL);
             break;
 
         case USERIAL_OP_GET_BT_WAKE_STATE:
-            err = ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_GET_ST, p_data);
+            ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_GET_ST, p_data);
             break;
 #endif  //  (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-        case USERIAL_OP_FLOW_ON:
-            ALOGI("## userial_vendor_ioctl: UART Flow On ");
-            *p_data |=TIOCM_RTS;
-            err = ioctl(vnd_userial.fd, TIOCMSET, p_data);
-            break;
-
-        case USERIAL_OP_FLOW_OFF:
-            ALOGI("## userial_vendor_ioctl: UART Flow Off ");
-            ioctl(vnd_userial.fd, TIOCMGET, p_data);
-            *p_data &= ~TIOCM_RTS;
-            err = ioctl(vnd_userial.fd, TIOCMSET, p_data);
-            break;
 
         default:
             break;
     }
-
-    return err;
 }
 
 /*******************************************************************************
@@ -442,80 +370,7 @@ int userial_vendor_ioctl(userial_vendor_ioctl_op_t op, int *p_data)
 *******************************************************************************/
 int userial_set_port(char *p_conf_name, char *p_conf_value, int param)
 {
-    strlcpy(vnd_userial.port_name, p_conf_value, VND_PORT_NAME_MAXLEN);
+    strcpy(vnd_userial.port_name, p_conf_value);
 
     return 0;
-}
-
-/*******************************************************************************
-**
-** Function        read_hci_event
-**
-** Description     Read HCI event during vendor initialization
-**
-** Returns         int: size to read
-**
-*******************************************************************************/
-int read_hci_event(int fd, unsigned char* buf, int size)
-{
-    int remain, r;
-    int count = 0;
-
-    if (size <= 0) {
-        ALOGE("Invalid size arguement!");
-        return -1;
-    }
-
-    ALOGI("%s: Wait for Command Compete Event from SOC", __FUNCTION__);
-
-    /* The first byte identifies the packet type. For HCI event packets, it
-     * should be 0x04, so we read until we get to the 0x04. */
-    while (1) {
-            r = read(fd, buf, 1);
-            if (r <= 0)
-                    return -1;
-            if (buf[0] == 0x04)
-                    break;
-    }
-    count++;
-
-    /* The next two bytes are the event code and parameter total length. */
-    while (count < 3) {
-            r = read(fd, buf + count, 3 - count);
-            if (r <= 0)
-                    return -1;
-            count += r;
-    }
-
-    /* Now we read the parameters. */
-    if (buf[2] < (size - 3))
-            remain = buf[2];
-    else
-            remain = size - 3;
-
-    while ((count - 3) < remain) {
-            r = read(fd, buf + count, remain - (count - 3));
-            if (r <= 0)
-                    return -1;
-            count += r;
-    }
-    return count;
-}
-
-int userial_clock_operation(int fd, int cmd)
-{
-    int ret = 0;
-
-    switch (cmd)
-    {
-        case USERIAL_OP_CLK_ON:
-        case USERIAL_OP_CLK_OFF:
-             ioctl(fd, cmd);
-             break;
-        case USERIAL_OP_CLK_STATE:
-             ret = ioctl(fd, cmd);
-             break;
-    }
-
-    return ret;
 }

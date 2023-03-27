@@ -26,3 +26,11 @@ AOS call to check_fw_bt_nordic
 -> nrf module reply -> don't need flash firmware
 -> nrf modlue doesn't reply in 2 request messages -> need to flash firmware
 
+Config android example
+https://github.com/android-rpi/device_brcm_rpi3/tree/android10
+
+Bluetooth sequence full stack
+https://blog.csdn.net/kehyuanyu/article/details/49074905
+
+Find bluetooth device sequence
+https://blog.csdn.net/u012408797/article/details/110004223

@@ -1,0 +1,21 @@
+package {
+	default_application_licenses: ["hardware_interfaces_license"],
+}
+
+hidl_interface {
+	name: "android.hardware.bluetooth@1.0",
+	root: "android.hardware",
+	srcs : [
+		"types.hal",
+		"IBluetoothChi.hal",
+		"IBluetoothHciCallbacks.hal",
+	],
+	interfaces: [
+		"android.hidl.base@1.0",
+	],
+	gen_java: true,
+	apex_available: [
+		"//apex_available: platform",
+		"com.android.btservices",
+	],
+}

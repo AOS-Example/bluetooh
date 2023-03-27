@@ -1,0 +1,22 @@
+package android.hardware.bluetooth@1.0
+
+import IBluetoothHciCallBacks;
+
+
+interface IBluetoothHci {
+	@entry
+	@callflow(next={"sendHciCommand", "sendAclData", "sendScoData", "close"});
+	initialize(IBluetoothHciCallbacks callback);
+
+	@callflow(next={"sendHciCommand", "sendAclData", "sendScoData", "close"});
+	sendHciCommand(HciPacket command);
+
+	@callflow(next={"sendHciCommand", "sendAclData", "sendScoData", "close"});
+	sendAclData(HciPacket data);
+
+	@callflow(next={"sendHciCommand", "sendAclData", "sendScoData", "close"});
+	sendScoData(HciPacket data);
+
+	@exit
+	close();	
+};
