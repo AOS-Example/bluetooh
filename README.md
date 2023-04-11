@@ -31,6 +31,7 @@ https://github.com/android-rpi/device_brcm_rpi3/tree/android10
 
 Bluetooth sequence full stack
 https://blog.csdn.net/kehyuanyu/article/details/49074905
+https://blog.csdn.net/zmk0810612124/article/details/82494136
 
 Find bluetooth device sequence
 https://blog.csdn.net/u012408797/article/details/110004223
