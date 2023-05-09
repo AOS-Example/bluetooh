@@ -1,0 +1,11 @@
+package android.hardware.bluetooth@1.0
+
+interface IBluetoothHciCallbacks {
+	initializationComplete(Status status);
+
+	hciEventReceived(HciPacket event);
+
+	aclDataReceived(HciPacket data);
+
+	scoDataReceived(HciPacket data);
+};
